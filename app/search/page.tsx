@@ -8,7 +8,9 @@ import { useDebounce } from "@/hooks/useDebounce";
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GoogleBook[]>([]);
-  const [library, setLibrary] = useState<Set<string>>(new Set());
+  const [libraryIds, setLibraryIds] = useState<Set<string>>(new Set());
+  const [addedBooks, setAddedBooks] = useState<Map<string, BookWithEntry>>(new Map());
+  const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [searching, setSearching] = useState(false);
 
@@ -17,35 +19,66 @@ export default function SearchPage() {
   useEffect(() => {
     if (!debouncedQuery.trim()) {
       setResults([]);
+      setSearching(false);
       return;
     }
     setSearching(true);
-    fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`)
+    const controller = new AbortController();
+    fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data: GoogleBook[]) => setResults(data))
+      .catch((err) => { if (err.name !== "AbortError") setResults([]); })
       .finally(() => setSearching(false));
+    return () => controller.abort();
   }, [debouncedQuery]);
 
   useEffect(() => {
     fetch("/api/books")
       .then((r) => r.json())
-      .then((books: BookWithEntry[]) => setLibrary(new Set(books.map((b) => b.id))));
+      .then((books: BookWithEntry[]) => setLibraryIds(new Set(books.map((b) => b.id))));
   }, []);
 
   const handleAdd = useCallback(async (book: GoogleBook, status: Status, dates: AddDates) => {
     setAdding((prev) => new Set(prev).add(book.id));
-    await fetch("/api/books", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...book, status, ...dates }),
-    });
-    setLibrary((prev) => new Set(prev).add(book.id));
-    setAdding((prev) => {
-      const next = new Set(prev);
-      next.delete(book.id);
-      return next;
-    });
+    try {
+      const res = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...book, status, ...dates }),
+      });
+      if (!res.ok) return;
+      const data: BookWithEntry = await res.json();
+      setAddedBooks((prev) => new Map(prev).set(book.id, data));
+      setJustAdded((prev) => new Set(prev).add(book.id));
+      setLibraryIds((prev) => new Set(prev).add(book.id));
+    } finally {
+      setAdding((prev) => {
+        const next = new Set(prev);
+        next.delete(book.id);
+        return next;
+      });
+    }
   }, []);
+
+  const handleDateChange = useCallback(
+    async (entryId: string, field: "startedAt" | "finishedAt", value: string | null) => {
+      setAddedBooks((prev) => {
+        const next = new Map(prev);
+        next.forEach((bwe, bookId) => {
+          if (bwe.entry?.id === entryId) {
+            next.set(bookId, { ...bwe, entry: { ...bwe.entry!, [field]: value } });
+          }
+        });
+        return next;
+      });
+      await fetch(`/api/entries/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+    },
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -67,15 +100,21 @@ export default function SearchPage() {
 
       {results.length > 0 && (
         <div className="space-y-3">
-          {results.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              onAdd={handleAdd}
-              loading={adding.has(book.id)}
-              inLibrary={library.has(book.id)}
-            />
-          ))}
+          {results.map((book) => {
+            const added = addedBooks.get(book.id);
+            const alreadyInLibrary = !added && libraryIds.has(book.id);
+            return (
+              <BookCard
+                key={book.id}
+                book={added ?? book}
+                onAdd={added ? undefined : handleAdd}
+                onDateChange={added ? handleDateChange : undefined}
+                autoShowDates={justAdded.has(book.id)}
+                loading={adding.has(book.id)}
+                inLibrary={alreadyInLibrary}
+              />
+            );
+          })}
         </div>
       )}
 

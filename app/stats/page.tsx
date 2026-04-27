@@ -63,25 +63,53 @@ export default async function StatsPage() {
   const maxMonth = Math.max(...byMonth, 1);
   const hasMonthData = byMonth.some((n) => n > 0);
 
-  // ── Genres ───────────────────────────────────────────────────────────────
-  const genreCount: Record<string, number> = {};
+  // ── Fiction vs Non-Fiction ────────────────────────────────────────────────
+  let fictionCount = 0;
+  let nonFictionCount = 0;
   for (const e of read) {
-    for (const g of JSON.parse(e.book.genres) as string[]) {
-      genreCount[g] = (genreCount[g] ?? 0) + 1;
-    }
+    const genres = JSON.parse(e.book.genres) as string[];
+    if (genres.length === 0) continue;
+    if (genres.some((g) => g.toLowerCase().includes("fiction"))) fictionCount++;
+    else nonFictionCount++;
   }
-  const topGenres = Object.entries(genreCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
   // ── Rating distribution ───────────────────────────────────────────────────
   const ratingDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   for (const r of ratings) ratingDist[r]++;
   const maxRatingCount = Math.max(...Object.values(ratingDist), 1);
 
-  // ── Longest / shortest ────────────────────────────────────────────────────
+  // ── Page stats ────────────────────────────────────────────────────────────
   const withPages = read.filter((e) => e.book.pageCount);
   const longest = withPages.length
     ? withPages.reduce((a, b) => ((a.book.pageCount ?? 0) > (b.book.pageCount ?? 0) ? a : b))
     : null;
+  const shortest = withPages.length
+    ? withPages.reduce((a, b) => ((a.book.pageCount ?? Infinity) < (b.book.pageCount ?? Infinity) ? a : b))
+    : null;
+  const avgPages = withPages.length
+    ? Math.round(withPages.reduce((sum, e) => sum + (e.book.pageCount ?? 0), 0) / withPages.length)
+    : null;
+
+  // ── Oldest book read ──────────────────────────────────────────────────────
+  const withYear = read.filter((e) => e.book.publishedYear);
+  const oldest = withYear.length
+    ? withYear.reduce((a, b) => ((a.book.publishedYear ?? Infinity) < (b.book.publishedYear ?? Infinity) ? a : b))
+    : null;
+
+  // ── Most-read author ──────────────────────────────────────────────────────
+  const authorCount: Record<string, number> = {};
+  for (const e of read) {
+    for (const author of JSON.parse(e.book.authors) as string[]) {
+      authorCount[author] = (authorCount[author] ?? 0) + 1;
+    }
+  }
+  const topAuthor = Object.entries(authorCount).sort((a, b) => b[1] - a[1])[0] ?? null;
+
+  // ── Single-day reads ──────────────────────────────────────────────────────
+  const singleDayReads = read.filter((e) => {
+    if (!e.startedAt || !e.finishedAt) return false;
+    return e.startedAt.toDateString() === e.finishedAt.toDateString();
+  }).length;
 
   // ── Currently reading – days in ───────────────────────────────────────────
   const readingWithDays = reading.map((e) => ({
@@ -108,8 +136,14 @@ export default async function StatsPage() {
           <Stat label={`Read in ${thisYear}`} value={byYear[thisYear]} />
         )}
         <Stat label="Want to Read" value={entries.filter((e) => e.status === "WANT_TO_READ").length} />
-        {paces.length > 0 && fastest && (
-          <Stat label="Fastest Read" value={`${Math.round(fastest.days)}d`} />
+        {avgPages !== null && (
+          <Stat label="Avg Length" value={`${avgPages.toLocaleString()} pp`} />
+        )}
+        {topAuthor && topAuthor[1] > 1 && (
+          <Stat label={`Most Read · ${topAuthor[0]}`} value={`${topAuthor[1]} books`} />
+        )}
+        {singleDayReads > 0 && (
+          <Stat label="1-Day Reads" value={singleDayReads} />
         )}
         {ratings.length > 0 && (
           <Stat label="Rated" value={`${ratings.length} / ${read.length}`} />
@@ -149,22 +183,21 @@ export default async function StatsPage() {
         </section>
       )}
 
-      {/* ── Books per year chart ── */}
+      {/* ── Books per year ── */}
       {years.length > 0 && (
         <section>
           <h2 className="font-medium mb-4">Books per Year</h2>
-          <div className="flex items-end gap-3 h-32">
+          <div className="space-y-2">
             {years.map((year) => {
               const count = byYear[year];
-              const heightPct = (count / maxBooksInYear) * 100;
+              const pct = (count / maxBooksInYear) * 100;
               return (
-                <div key={year} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                  <span className="text-xs text-stone-500">{count}</span>
-                  <div
-                    className="w-full bg-stone-800 rounded-t"
-                    style={{ height: `${heightPct}%` }}
-                  />
-                  <span className="text-xs text-stone-400">{year}</span>
+                <div key={year} className="flex items-center gap-3">
+                  <span className="text-sm text-stone-600 w-10">{year}</span>
+                  <div className="flex-1 bg-stone-100 rounded-full h-2">
+                    <div className="bg-stone-800 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs text-stone-400 w-4 text-right">{count}</span>
                 </div>
               );
             })}
@@ -176,18 +209,20 @@ export default async function StatsPage() {
       {hasMonthData && (
         <section>
           <h2 className="font-medium mb-4">Monthly — {thisYear}</h2>
-          <div className="flex items-end gap-1.5 h-24">
+          <div className="space-y-2">
             {byMonth.map((count, i) => {
-              const heightPct = (count / maxMonth) * 100;
+              const pct = (count / maxMonth) * 100;
               const isPast = i <= new Date().getMonth();
               return (
-                <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                  {count > 0 && <span className="text-xs text-stone-500">{count}</span>}
-                  <div
-                    className={`w-full rounded-t ${isPast ? "bg-stone-700" : "bg-stone-200"}`}
-                    style={{ height: count > 0 ? `${heightPct}%` : "2px" }}
-                  />
-                  <span className="text-xs text-stone-400 hidden sm:block">{MONTHS[i]}</span>
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-xs text-stone-500 w-7">{MONTHS[i]}</span>
+                  <div className="flex-1 bg-stone-100 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${isPast ? "bg-stone-700" : "bg-stone-300"}`}
+                      style={{ width: count > 0 ? `${pct}%` : "0%" }}
+                    />
+                  </div>
+                  <span className="text-xs text-stone-400 w-4 text-right">{count > 0 ? count : ""}</span>
                 </div>
               );
             })}
@@ -220,16 +255,20 @@ export default async function StatsPage() {
         </section>
       )}
 
-      {/* ── Top genres ── */}
-      {topGenres.length > 0 && (
+      {/* ── Fiction vs Non-Fiction ── */}
+      {(fictionCount > 0 || nonFictionCount > 0) && (
         <section>
-          <h2 className="font-medium mb-4">Top Genres</h2>
+          <h2 className="font-medium mb-4">Fiction vs Non-Fiction</h2>
           <div className="space-y-2">
-            {topGenres.map(([genre, count]) => {
-              const pct = (count / topGenres[0][1]) * 100;
+            {[
+              { label: "Fiction", count: fictionCount },
+              { label: "Non-Fiction", count: nonFictionCount },
+            ].map(({ label, count }) => {
+              const total = fictionCount + nonFictionCount;
+              const pct = total > 0 ? (count / total) * 100 : 0;
               return (
-                <div key={genre} className="flex items-center gap-3">
-                  <span className="text-sm text-stone-600 w-40 truncate">{genre}</span>
+                <div key={label} className="flex items-center gap-3">
+                  <span className="text-sm text-stone-600 w-24">{label}</span>
                   <div className="flex-1 bg-stone-100 rounded-full h-2">
                     <div className="bg-stone-700 h-2 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
@@ -241,8 +280,8 @@ export default async function StatsPage() {
         </section>
       )}
 
-      {/* ── Pace highlights ── */}
-      {(fastest || slowest || longest) && (
+      {/* ── Highlights ── */}
+      {(fastest || slowest || longest || shortest || oldest) && (
         <section>
           <h2 className="font-medium mb-4">Highlights</h2>
           <div className="space-y-3">
@@ -265,6 +304,20 @@ export default async function StatsPage() {
                 label="Longest book"
                 sub={`${longest.book.pageCount?.toLocaleString()} pages`}
                 book={longest.book}
+              />
+            )}
+            {shortest && shortest.id !== longest?.id && (
+              <Highlight
+                label="Shortest book"
+                sub={`${shortest.book.pageCount?.toLocaleString()} pages`}
+                book={shortest.book}
+              />
+            )}
+            {oldest && (
+              <Highlight
+                label="Oldest book read"
+                sub={`Published ${oldest.book.publishedYear}`}
+                book={oldest.book}
               />
             )}
           </div>

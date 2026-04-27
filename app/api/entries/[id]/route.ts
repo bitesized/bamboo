@@ -17,10 +17,6 @@ export async function PATCH(
   if (startedAt !== undefined) data.startedAt = startedAt ? new Date(startedAt) : null;
   if (finishedAt !== undefined) data.finishedAt = finishedAt ? new Date(finishedAt) : null;
 
-  if (status === "READ" && !finishedAt && body.autoFinish) {
-    data.finishedAt = new Date();
-  }
-
   const entry = await prisma.entry.update({
     where: { id },
     data,

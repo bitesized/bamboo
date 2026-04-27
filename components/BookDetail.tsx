@@ -28,21 +28,29 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
 
   async function handleAdd(status: Status, dates: AddDates) {
     setAdding(true);
-    const res = await fetch("/api/books", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...initial, status, ...dates }),
-    });
-    const data = await res.json();
-    setEntry(data.entry);
-    setAdding(false);
+    try {
+      const res = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...initial, status, ...dates }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEntry(data.entry);
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function handleRemove() {
     if (!entry) return;
     setRemoving(true);
-    await fetch(`/api/entries/${entry.id}`, { method: "DELETE" });
-    router.push("/library");
+    try {
+      await fetch(`/api/entries/${entry.id}`, { method: "DELETE" });
+      router.push("/library");
+    } finally {
+      setRemoving(false);
+    }
   }
 
   const patch = useCallback(
@@ -59,10 +67,7 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
   );
 
   function handleStatusChange(status: Status) {
-    const updates: Partial<EntryData> = { status };
-    if (status === "READING" && !entry?.startedAt) updates.startedAt = new Date().toISOString();
-    if (status === "READ" && !entry?.finishedAt) updates.finishedAt = new Date().toISOString();
-    patch(updates);
+    patch({ status });
   }
 
   const toDateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : "");

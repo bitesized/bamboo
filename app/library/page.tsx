@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { BookWithEntry, Status } from "@/lib/types";
 import BookCard from "@/components/BookCard";
 
-const FILTERS: { label: string; value: Status | "ALL" }[] = [
-  { label: "All", value: "ALL" },
+const FILTERS: { label: string; value: Status }[] = [
   { label: "Read", value: "READ" },
   { label: "Reading", value: "READING" },
   { label: "Want to Read", value: "WANT_TO_READ" },
@@ -13,7 +12,7 @@ const FILTERS: { label: string; value: Status | "ALL" }[] = [
 
 export default function LibraryPage() {
   const [books, setBooks] = useState<BookWithEntry[]>([]);
-  const [filter, setFilter] = useState<Status | "ALL">("ALL");
+  const [filter, setFilter] = useState<Status>("READ");
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
@@ -94,7 +93,7 @@ export default function LibraryPage() {
     setDeleting(false);
   };
 
-  const filtered = filter === "ALL" ? books : books.filter((b) => b.entry?.status === filter);
+  const filtered = books.filter((b) => b.entry?.status === filter);
 
   return (
     <div className="space-y-6">

@@ -19,7 +19,10 @@ export default async function Dashboard() {
   const ratings = read.filter((e) => e.rating !== null).map((e) => e.rating as number);
   const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
 
-  const recentlyRead = read.slice(0, 5);
+  const recentlyRead = read
+    .filter((e) => e.finishedAt !== null)
+    .sort((a, b) => b.finishedAt!.getTime() - a.finishedAt!.getTime())
+    .slice(0, 5);
 
   return (
     <div className="space-y-10">

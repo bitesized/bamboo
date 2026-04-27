@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import type { GoogleBook, BookWithEntry, Status, AddDates } from "@/lib/types";
 import StarRating from "./StarRating";
 import ShelfPicker from "./ShelfPicker";
@@ -15,16 +16,44 @@ interface Props {
   onRemove?: (entryId: string) => void;
   loading?: boolean;
   inLibrary?: boolean;
+  autoShowDates?: boolean;
 }
 
 export default function BookCard({
-  book, onAdd, onStatusChange, onRatingChange, onDateChange, onRemove, loading, inLibrary,
+  book, onAdd, onStatusChange, onRatingChange, onDateChange, onRemove, loading, inLibrary, autoShowDates,
 }: Props) {
   const entry = "entry" in book ? book.entry : null;
   const authors = book.authors.join(", ");
   const isInLibrary = inLibrary || !!entry;
 
-  const toDateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
+  const toDateInput = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "");
+
+  const hasExistingDates = !!(entry?.startedAt || entry?.finishedAt);
+  const [showDates, setShowDates] = useState(hasExistingDates);
+  const [localStartedAt, setLocalStartedAt] = useState(toDateInput(entry?.startedAt));
+  const [localFinishedAt, setLocalFinishedAt] = useState(toDateInput(entry?.finishedAt));
+
+  useEffect(() => {
+    if (autoShowDates) setShowDates(true);
+  }, [autoShowDates]);
+
+  useEffect(() => {
+    setLocalStartedAt(toDateInput(entry?.startedAt));
+    setLocalFinishedAt(toDateInput(entry?.finishedAt));
+  }, [entry?.id, entry?.startedAt, entry?.finishedAt]);
+
+  function saveDates() {
+    if (!onDateChange || !entry) return;
+    onDateChange(entry.id, "startedAt", localStartedAt || null);
+    if (entry.status === "READ") {
+      onDateChange(entry.id, "finishedAt", localFinishedAt || null);
+    }
+  }
+
+  const showDateSection =
+    entry &&
+    (entry.status === "READING" || entry.status === "READ") &&
+    onDateChange;
 
   return (
     <div className="flex gap-4 p-4 bg-white rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
@@ -74,33 +103,44 @@ export default function BookCard({
                 )}
               </div>
 
-              {(entry.status === "READING" || entry.status === "READ") && onDateChange && (
-                <div className="flex flex-wrap gap-3">
-                  <label className="flex items-center gap-1.5">
-                    <span className="text-xs text-stone-400">Started</span>
-                    <input
-                      type="date"
-                      value={toDateInput(entry.startedAt)}
-                      onChange={(e) =>
-                        onDateChange(entry.id, "startedAt", e.target.value || null)
-                      }
-                      className="text-xs border border-stone-200 rounded px-2 py-0.5 bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
-                    />
-                  </label>
-                  {entry.status === "READ" && (
+              {showDateSection && (
+                showDates ? (
+                  <div className="flex flex-wrap items-end gap-3">
                     <label className="flex items-center gap-1.5">
-                      <span className="text-xs text-stone-400">Finished</span>
+                      <span className="text-xs text-stone-400">Started</span>
                       <input
                         type="date"
-                        value={toDateInput(entry.finishedAt)}
-                        onChange={(e) =>
-                          onDateChange(entry.id, "finishedAt", e.target.value || null)
-                        }
+                        value={localStartedAt}
+                        onChange={(e) => setLocalStartedAt(e.target.value)}
                         className="text-xs border border-stone-200 rounded px-2 py-0.5 bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
                       />
                     </label>
-                  )}
-                </div>
+                    {entry.status === "READ" && (
+                      <label className="flex items-center gap-1.5">
+                        <span className="text-xs text-stone-400">Finished</span>
+                        <input
+                          type="date"
+                          value={localFinishedAt}
+                          onChange={(e) => setLocalFinishedAt(e.target.value)}
+                          className="text-xs border border-stone-200 rounded px-2 py-0.5 bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                        />
+                      </label>
+                    )}
+                    <button
+                      onClick={saveDates}
+                      className="text-xs px-2.5 py-1 border border-stone-300 rounded hover:bg-stone-900 hover:text-white hover:border-stone-900 transition-colors"
+                    >
+                      Save dates
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowDates(true)}
+                    className="text-xs text-stone-400 hover:text-stone-700 transition-colors"
+                  >
+                    + Add dates
+                  </button>
+                )
               )}
             </>
           ) : isInLibrary ? (

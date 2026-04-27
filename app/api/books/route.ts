@@ -59,10 +59,7 @@ export async function POST(req: NextRequest) {
   const entryData: Record<string, unknown> = { status: initialStatus };
 
   if (startedAt) entryData.startedAt = new Date(startedAt);
-  else if (initialStatus === "READING" || initialStatus === "READ") entryData.startedAt = new Date();
-
   if (finishedAt) entryData.finishedAt = new Date(finishedAt);
-  else if (initialStatus === "READ") entryData.finishedAt = new Date();
 
   const book = await prisma.book.upsert({
     where: { id },
