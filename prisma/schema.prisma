@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Book {
+  id            String   @id // Google Books volumeId
+  title         String
+  subtitle      String?
+  authors       String   // JSON array stored as string
+  coverUrl      String?
+  pageCount     Int?
+  genres        String   // JSON array stored as string
+  publishedYear Int?
+  description   String?
+  isbn          String?
+  publisher     String?
+  language      String?
+  entry         Entry?
+  createdAt     DateTime @default(now())
+}
+
+model Entry {
+  id          String    @id @default(cuid())
+  bookId      String    @unique
+  book        Book      @relation(fields: [bookId], references: [id])
+  status      String    @default("WANT_TO_READ") // WANT_TO_READ | READING | READ
+  rating      Int?
+  notes       String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
