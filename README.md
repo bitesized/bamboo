@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bamboo
 
-## Getting Started
+A personal book tracking app. Search for books via Google Books, manage reading shelves, track dates and ratings, and view reading stats. Single-user, password-protected.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Search** — find books via Google Books API
+- **Library** — shelves for Want to Read, Reading, and Read
+- **Dates & ratings** — track start/finish dates and 1–5 star ratings per book
+- **Stats** — books per year, monthly breakdown, rating distribution, genres, pace highlights
+- **Import** — bulk import from a StoryGraph CSV export
+- **Auth** — simple password gate, no accounts
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Next.js 16 (App Router)
+- Prisma v7 + SQLite (local) / Postgres (production)
+- Tailwind CSS
+- Google Books API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local setup
 
-## Learn More
+1. **Clone and install**
+   ```bash
+   git clone <repo>
+   cd bamboo
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Environment variables** — create `.env.local`:
+   ```
+   GOOGLE_BOOKS_API_KEY=your_key
+   APP_PASSWORD=your_password
+   SESSION_SECRET=your_random_secret   # openssl rand -base64 32
+   DATABASE_URL=file:./prisma/dev.db
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Database**
+   ```bash
+   npx prisma migrate dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Run**
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000) and sign in with your password.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploying to Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push to GitHub and import the repo in Vercel.
+2. Add environment variables in **Settings → Environment Variables**:
+   - `GOOGLE_BOOKS_API_KEY`
+   - `APP_PASSWORD`
+   - `SESSION_SECRET`
+   - `DATABASE_URL` (point to a hosted Postgres instance, e.g. Vercel Postgres or Neon)
+3. Deploy.
+
+## Importing from StoryGraph
+
+Go to **Import** and upload a StoryGraph CSV export (`Settings → Import / Export → Export your library`). Books are matched against Google Books by ISBN first, then title + author. Any that can't be matched are listed in a post-import report.
+
+> Intended as a one-time onboarding step — running it again after adding books manually may create duplicate shelf entries.
