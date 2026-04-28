@@ -6,6 +6,8 @@ import Image from "next/image";
 import type { BookWithEntry, EntryData, Status, AddDates } from "@/lib/types";
 import StarRating from "./StarRating";
 import ShelfPicker from "./ShelfPicker";
+import Toast from "./Toast";
+import { useToast } from "@/hooks/useToast";
 import { sanitizeHtml } from "@/lib/sanitize";
 
 const LANGUAGE_NAMES = new Intl.DisplayNames(["en"], { type: "language" });
@@ -19,8 +21,8 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
   const router = useRouter();
   const [entry, setEntry] = useState<EntryData | null>(initial.entry);
   const [adding, setAdding] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const { toasts, toast, dismiss } = useToast();
 
   const rawDescription = initial.description ?? "";
   const safeDescription = sanitizeHtml(rawDescription);
@@ -44,13 +46,36 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
 
   async function handleRemove() {
     if (!entry) return;
-    setRemoving(true);
-    try {
-      await fetch(`/api/entries/${entry.id}`, { method: "DELETE" });
-      router.push("/library");
-    } finally {
-      setRemoving(false);
-    }
+    const snapshot = entry;
+    // Optimistic: clear entry
+    setEntry(null);
+
+    toast({
+      message: `Removed "${initial.title}"`,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          // Re-add the entry by re-posting the book
+          const res = await fetch("/api/books", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...initial,
+              status: snapshot.status,
+              startedAt: snapshot.startedAt,
+              finishedAt: snapshot.finishedAt,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setEntry(data.entry);
+          }
+        },
+      },
+      durationMs: 5000,
+    });
+
+    await fetch(`/api/entries/${snapshot.id}`, { method: "DELETE" });
   }
 
   const patch = useCallback(
@@ -74,37 +99,39 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
 
   return (
     <div className="space-y-8">
+      <Toast toasts={toasts} onDismiss={dismiss} />
+
       <button
         onClick={() => router.back()}
-        className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
+        className="text-sm text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
       >
         ← Back
       </button>
 
       {/* ── Header ── */}
       <div className="flex gap-6">
-        <div className="flex-shrink-0 w-28 h-40 bg-stone-100 rounded-lg overflow-hidden relative shadow-sm">
+        <div className="flex-shrink-0 w-28 h-40 bg-stone-100 dark:bg-stone-800 rounded-lg overflow-hidden relative shadow-sm">
           {initial.coverUrl ? (
-            <Image src={initial.coverUrl} alt={initial.title} fill className="object-cover" unoptimized />
+            <Image src={initial.coverUrl} alt={initial.title} fill className="object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-stone-400 text-xs text-center px-2">
+            <div className="w-full h-full flex items-center justify-center text-stone-400 dark:text-stone-500 text-xs text-center px-2">
               No cover
             </div>
           )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold leading-tight">{initial.title}</h1>
+          <h1 className="text-xl font-semibold leading-tight text-stone-900 dark:text-stone-100">{initial.title}</h1>
           {initial.subtitle && (
-            <p className="text-stone-500 mt-0.5 text-sm leading-snug">{initial.subtitle}</p>
+            <p className="text-stone-500 dark:text-stone-400 mt-0.5 text-sm leading-snug">{initial.subtitle}</p>
           )}
-          <p className="text-stone-600 mt-1.5">
+          <p className="text-stone-600 dark:text-stone-400 mt-1.5">
             {initial.authors.join(", ") || "Unknown author"}
           </p>
           {initial.genres.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {initial.genres.map((g) => (
-                <span key={g} className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full">
+                <span key={g} className="text-xs px-2 py-0.5 bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 rounded-full">
                   {g}
                 </span>
               ))}
@@ -114,7 +141,7 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
       </div>
 
       {/* ── Metadata grid ── */}
-      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm border border-stone-200 rounded-lg p-4 bg-white">
+      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm border border-stone-200 dark:border-stone-700 rounded-lg p-4 bg-white dark:bg-stone-900">
         {initial.publishedYear && <Meta label="Published" value={initial.publishedYear} />}
         {initial.pageCount && <Meta label="Pages" value={initial.pageCount.toLocaleString()} />}
         {initial.publisher && <Meta label="Publisher" value={initial.publisher} />}
@@ -126,7 +153,7 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
       {safeDescription && (
         <div>
           <div
-            className={`text-sm text-stone-700 leading-relaxed prose prose-sm max-w-none prose-stone overflow-hidden transition-all ${
+            className={`text-sm text-stone-700 dark:text-stone-300 leading-relaxed prose prose-sm max-w-none prose-stone dark:prose-invert overflow-hidden transition-all ${
               !descExpanded && isLong ? "max-h-36" : ""
             }`}
             dangerouslySetInnerHTML={{ __html: safeDescription }}
@@ -134,7 +161,7 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
           {isLong && (
             <button
               onClick={() => setDescExpanded((v) => !v)}
-              className="text-xs text-stone-400 hover:text-stone-700 mt-1 transition-colors"
+              className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 mt-1 transition-colors"
             >
               {descExpanded ? "Show less" : "Show more"}
             </button>
@@ -143,20 +170,20 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
       )}
 
       {/* ── Entry editor ── */}
-      <div className="border-t border-stone-200 pt-6">
+      <div className="border-t border-stone-200 dark:border-stone-700 pt-6">
         {!entry ? (
           <ShelfPicker onSelect={handleAdd} loading={adding} />
         ) : (
           <div className="space-y-5">
-            <h2 className="font-medium text-sm text-stone-500 uppercase tracking-wide">Your entry</h2>
+            <h2 className="font-medium text-sm text-stone-500 dark:text-stone-400 uppercase tracking-wide">Your entry</h2>
 
             <div className="flex flex-wrap gap-4 items-start">
               <div>
-                <label className="block text-xs text-stone-500 mb-1">Status</label>
+                <label className="block text-xs text-stone-500 dark:text-stone-400 mb-1">Status</label>
                 <select
                   value={entry.status}
                   onChange={(e) => handleStatusChange(e.target.value as Status)}
-                  className="text-sm border border-stone-200 rounded-lg px-3 py-1.5 bg-white text-stone-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-stone-300"
+                  className="text-sm border border-stone-200 dark:border-stone-600 rounded-lg px-3 py-1.5 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-stone-300"
                 >
                   <option value="WANT_TO_READ">Want to Read</option>
                   <option value="READING">Reading</option>
@@ -164,34 +191,34 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-stone-500 mb-1">Rating</label>
-                <StarRating value={entry.rating} onChange={(r) => patch({ rating: r })} />
+                <label className="block text-xs text-stone-500 dark:text-stone-400 mb-1">Rating</label>
+                <StarRating value={entry.rating} onChange={(r) => patch({ rating: r || null })} />
               </div>
             </div>
 
             {(entry.status === "READING" || entry.status === "READ") && (
               <div className="flex flex-wrap gap-4">
                 <div>
-                  <label className="block text-xs text-stone-500 mb-1">Started</label>
+                  <label className="block text-xs text-stone-500 dark:text-stone-400 mb-1">Started</label>
                   <input
                     type="date"
                     value={toDateInput(entry.startedAt)}
                     onChange={(e) =>
                       patch({ startedAt: e.target.value ? new Date(e.target.value).toISOString() : null })
                     }
-                    className="text-sm border border-stone-200 rounded-lg px-3 py-1.5 bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                    className="text-sm border border-stone-200 dark:border-stone-600 rounded-lg px-3 py-1.5 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-300"
                   />
                 </div>
                 {entry.status === "READ" && (
                   <div>
-                    <label className="block text-xs text-stone-500 mb-1">Finished</label>
+                    <label className="block text-xs text-stone-500 dark:text-stone-400 mb-1">Finished</label>
                     <input
                       type="date"
                       value={toDateInput(entry.finishedAt)}
                       onChange={(e) =>
                         patch({ finishedAt: e.target.value ? new Date(e.target.value).toISOString() : null })
                       }
-                      className="text-sm border border-stone-200 rounded-lg px-3 py-1.5 bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                      className="text-sm border border-stone-200 dark:border-stone-600 rounded-lg px-3 py-1.5 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-300"
                     />
                   </div>
                 )}
@@ -199,7 +226,7 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
             )}
 
             <div>
-              <label className="block text-xs text-stone-500 mb-1">Notes</label>
+              <label className="block text-xs text-stone-500 dark:text-stone-400 mb-1">Notes</label>
               <textarea
                 defaultValue={entry.notes ?? ""}
                 onBlur={(e) => {
@@ -208,16 +235,15 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
                 }}
                 rows={4}
                 placeholder="Your thoughts…"
-                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 bg-white text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-300 resize-none"
+                className="w-full text-sm border border-stone-200 dark:border-stone-600 rounded-lg px-3 py-2 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-300 resize-none"
               />
             </div>
 
             <button
               onClick={handleRemove}
-              disabled={removing}
-              className="text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+              className="text-xs text-red-500 hover:text-red-700 transition-colors"
             >
-              {removing ? "Removing…" : "Remove from library"}
+              Remove from library
             </button>
           </div>
         )}
@@ -229,8 +255,8 @@ export default function BookDetail({ book: initial }: { book: BookWithEntry }) {
 function Meta({ label, value, mono }: { label: string; value: string | number; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs text-stone-400">{label}</dt>
-      <dd className={`text-stone-700 mt-0.5 ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
+      <dt className="text-xs text-stone-400 dark:text-stone-500">{label}</dt>
+      <dd className={`text-stone-700 dark:text-stone-300 mt-0.5 ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
     </div>
   );
 }
