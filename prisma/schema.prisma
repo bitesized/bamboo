@@ -29,7 +29,7 @@ model Entry {
   bookId      String    @unique
   book        Book      @relation(fields: [bookId], references: [id])
   status      String    @default("WANT_TO_READ") // WANT_TO_READ | READING | READ
-  rating      Int?
+  rating      Float?
   notes       String?
   startedAt   DateTime?
   finishedAt  DateTime?
