@@ -56,15 +56,15 @@ export default function BookCard({
     onDateChange;
 
   return (
-    <div className="flex gap-4 p-4 bg-white rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
+    <div className="flex gap-4 p-4 bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600 transition-colors">
       <Link
         href={`/books/${book.id}`}
-        className="flex-shrink-0 w-16 h-24 bg-stone-100 rounded overflow-hidden relative block"
+        className="flex-shrink-0 w-16 h-24 bg-stone-100 dark:bg-stone-800 rounded overflow-hidden relative block"
       >
         {book.coverUrl ? (
-          <Image src={book.coverUrl} alt={book.title} fill className="object-cover" unoptimized />
+          <Image src={book.coverUrl} alt={book.title} fill className="object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-stone-400 text-xs text-center px-1">
+          <div className="w-full h-full flex items-center justify-center text-stone-400 dark:text-stone-500 text-xs text-center px-1">
             No cover
           </div>
         )}
@@ -72,11 +72,11 @@ export default function BookCard({
 
       <div className="flex-1 min-w-0">
         <Link href={`/books/${book.id}`} className="hover:underline">
-          <h3 className="font-medium text-stone-900 truncate">{book.title}</h3>
+          <h3 className="font-medium text-stone-900 dark:text-stone-100 truncate">{book.title}</h3>
         </Link>
-        <p className="text-sm text-stone-500 truncate">{authors || "Unknown author"}</p>
+        <p className="text-sm text-stone-500 dark:text-stone-400 truncate">{authors || "Unknown author"}</p>
         {book.publishedYear && (
-          <p className="text-xs text-stone-400 mt-0.5">{book.publishedYear}</p>
+          <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{book.publishedYear}</p>
         )}
 
         <div className="mt-2 space-y-2">
@@ -86,7 +86,7 @@ export default function BookCard({
                 <select
                   value={entry.status}
                   onChange={(e) => onStatusChange?.(entry.id, e.target.value)}
-                  className="text-xs border border-stone-200 rounded px-2 py-1 bg-white text-stone-700 cursor-pointer"
+                  className="text-xs border border-stone-200 dark:border-stone-600 rounded px-2 py-1 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 cursor-pointer"
                 >
                   <option value="WANT_TO_READ">Want to Read</option>
                   <option value="READING">Reading</option>
@@ -96,7 +96,7 @@ export default function BookCard({
                 {onRemove && (
                   <button
                     onClick={() => onRemove(entry.id)}
-                    className="text-xs text-stone-400 hover:text-red-500 transition-colors ml-auto"
+                    className="text-xs text-stone-400 dark:text-stone-500 hover:text-red-500 transition-colors ml-auto"
                   >
                     Remove
                   </button>
@@ -107,28 +107,28 @@ export default function BookCard({
                 showDates ? (
                   <div className="flex flex-wrap items-end gap-3">
                     <label className="flex items-center gap-1.5">
-                      <span className="text-xs text-stone-400">Started</span>
+                      <span className="text-xs text-stone-400 dark:text-stone-500">Started</span>
                       <input
                         type="date"
                         value={localStartedAt}
                         onChange={(e) => setLocalStartedAt(e.target.value)}
-                        className="text-xs border border-stone-200 rounded px-2 py-0.5 bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                        className="text-xs border border-stone-200 dark:border-stone-600 rounded px-2 py-0.5 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 focus:outline-none focus:ring-1 focus:ring-stone-300"
                       />
                     </label>
                     {entry.status === "READ" && (
                       <label className="flex items-center gap-1.5">
-                        <span className="text-xs text-stone-400">Finished</span>
+                        <span className="text-xs text-stone-400 dark:text-stone-500">Finished</span>
                         <input
                           type="date"
                           value={localFinishedAt}
                           onChange={(e) => setLocalFinishedAt(e.target.value)}
-                          className="text-xs border border-stone-200 rounded px-2 py-0.5 bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                          className="text-xs border border-stone-200 dark:border-stone-600 rounded px-2 py-0.5 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 focus:outline-none focus:ring-1 focus:ring-stone-300"
                         />
                       </label>
                     )}
                     <button
                       onClick={saveDates}
-                      className="text-xs px-2.5 py-1 border border-stone-300 rounded hover:bg-stone-900 hover:text-white hover:border-stone-900 transition-colors"
+                      className="text-xs px-2.5 py-1 border border-stone-300 dark:border-stone-600 rounded hover:bg-stone-900 dark:hover:bg-stone-100 hover:text-white dark:hover:text-stone-900 hover:border-stone-900 transition-colors"
                     >
                       Save dates
                     </button>
@@ -136,7 +136,7 @@ export default function BookCard({
                 ) : (
                   <button
                     onClick={() => setShowDates(true)}
-                    className="text-xs text-stone-400 hover:text-stone-700 transition-colors"
+                    className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors"
                   >
                     + Add dates
                   </button>
@@ -144,7 +144,7 @@ export default function BookCard({
               )}
             </>
           ) : isInLibrary ? (
-            <span className="text-xs text-stone-400 italic">In library</span>
+            <span className="text-xs text-stone-400 dark:text-stone-500 italic">In library</span>
           ) : (
             <ShelfPicker
               loading={loading}

@@ -77,14 +77,14 @@ export default function ImportPage() {
   return (
     <div className="max-w-xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Import from StoryGraph</h1>
-        <p className="text-stone-500 text-sm mt-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">Import from StoryGraph</h1>
+        <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">
           Upload a StoryGraph CSV export to populate your library.
         </p>
       </div>
 
       {/* ── Onboarding warning ── */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800 space-y-1">
+      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-300 space-y-1">
         <p className="font-medium">Intended for onboarding</p>
         <p>
           This import is designed to be run once when setting up Bamboo. Running it after
@@ -95,9 +95,9 @@ export default function ImportPage() {
 
       {phase === "idle" && (
         <div className="space-y-4">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-stone-600 dark:text-stone-400">
             Export your data from StoryGraph:{" "}
-            <span className="font-mono text-xs bg-stone-100 px-1.5 py-0.5 rounded">
+            <span className="font-mono text-xs bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-1.5 py-0.5 rounded">
               Settings → Import / Export → Export your library
             </span>
           </p>
@@ -116,19 +116,19 @@ export default function ImportPage() {
 
       {phase === "ready" && (
         <div className="space-y-4">
-          <p className="text-sm text-stone-700">
+          <p className="text-sm text-stone-700 dark:text-stone-300">
             <span className="font-semibold">{rows.length} books</span> found in the CSV and ready to import.
           </p>
           <div className="flex gap-3">
             <button
               onClick={runImport}
-              className="px-4 py-2 bg-stone-900 text-white text-sm rounded-lg hover:bg-stone-700 transition-colors"
+              className="px-4 py-2 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-sm rounded-lg hover:bg-stone-700 dark:hover:bg-stone-200 transition-colors"
             >
               Start import
             </button>
             <button
               onClick={reset}
-              className="px-4 py-2 text-stone-600 text-sm rounded-lg border border-stone-200 hover:border-stone-400 transition-colors"
+              className="px-4 py-2 text-stone-600 dark:text-stone-400 text-sm rounded-lg border border-stone-200 dark:border-stone-600 hover:border-stone-400 transition-colors"
             >
               Choose different file
             </button>
@@ -138,16 +138,16 @@ export default function ImportPage() {
 
       {phase === "importing" && (
         <div className="space-y-3">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-stone-600 dark:text-stone-400">
             Importing {progress} of {rows.length}…
           </p>
-          <div className="w-full bg-stone-100 rounded-full h-2">
+          <div className="w-full bg-stone-100 dark:bg-stone-800 rounded-full h-2">
             <div
-              className="bg-stone-800 h-2 rounded-full transition-all duration-200"
+              className="bg-stone-800 dark:bg-stone-300 h-2 rounded-full transition-all duration-200"
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="text-xs text-stone-400">
+          <p className="text-xs text-stone-400 dark:text-stone-500">
             Each book is looked up on Google Books. This may take a few minutes.
           </p>
         </div>
@@ -180,7 +180,7 @@ export default function ImportPage() {
               <h2 className="font-medium text-sm mb-2">
                 Not found on Google Books ({report.not_found.length})
               </h2>
-              <ul className="text-sm text-stone-600 space-y-1 max-h-60 overflow-y-auto border border-stone-200 rounded-lg p-3 bg-white">
+              <ul className="text-sm text-stone-600 dark:text-stone-400 space-y-1 max-h-60 overflow-y-auto border border-stone-200 dark:border-stone-700 rounded-lg p-3 bg-white dark:bg-stone-900">
                 {report.not_found.map((title) => (
                   <li key={title} className="truncate">
                     {title}
@@ -199,7 +199,7 @@ export default function ImportPage() {
               <h2 className="font-medium text-sm mb-2">
                 Already in library ({report.already_in_library.length})
               </h2>
-              <ul className="text-sm text-stone-500 space-y-1 max-h-40 overflow-y-auto border border-stone-200 rounded-lg p-3 bg-white">
+              <ul className="text-sm text-stone-500 dark:text-stone-400 space-y-1 max-h-40 overflow-y-auto border border-stone-200 dark:border-stone-700 rounded-lg p-3 bg-white dark:bg-stone-900">
                 {report.already_in_library.map((title) => (
                   <li key={title} className="truncate">
                     {title}
@@ -211,7 +211,7 @@ export default function ImportPage() {
 
           <button
             onClick={reset}
-            className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
+            className="text-sm text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 transition-colors"
           >
             ← Import another file
           </button>

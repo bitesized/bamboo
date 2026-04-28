@@ -22,7 +22,7 @@ export default function ShelfPicker({ onSelect, loading }: Props) {
       <button
         onClick={() => setPicking(true)}
         disabled={loading}
-        className="text-xs px-3 py-1 bg-stone-900 text-white rounded hover:bg-stone-700 transition-colors disabled:opacity-50"
+        className="text-xs px-3 py-1 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 rounded hover:bg-stone-700 dark:hover:bg-stone-200 transition-colors disabled:opacity-50"
       >
         {loading ? "Adding…" : "Add to library"}
       </button>
@@ -35,14 +35,14 @@ export default function ShelfPicker({ onSelect, loading }: Props) {
         <button
           key={value}
           onClick={() => { onSelect(value, {}); setPicking(false); }}
-          className="text-xs px-2.5 py-1 border border-stone-300 rounded hover:bg-stone-900 hover:text-white hover:border-stone-900 transition-colors"
+          className="text-xs px-2.5 py-1 border border-stone-300 dark:border-stone-600 rounded hover:bg-stone-900 dark:hover:bg-stone-100 hover:text-white dark:hover:text-stone-900 hover:border-stone-900 dark:hover:border-stone-100 transition-colors text-stone-700 dark:text-stone-300"
         >
           {label}
         </button>
       ))}
       <button
         onClick={() => setPicking(false)}
-        className="text-xs px-2 py-1 text-stone-400 hover:text-stone-600 transition-colors"
+        className="text-xs px-2 py-1 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
       >
         Cancel
       </button>

@@ -16,8 +16,8 @@ export default async function StatsPage() {
   if (read.length === 0 && reading.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Stats</h1>
-        <p className="text-stone-400">Add some books to see your stats.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">Stats</h1>
+        <p className="text-stone-400 dark:text-stone-500">Add some books to see your stats.</p>
       </div>
     );
   }
@@ -122,8 +122,8 @@ export default async function StatsPage() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Stats</h1>
-        <p className="text-stone-500 text-sm mt-1">Your reading history</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">Stats</h1>
+        <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Your reading history</p>
       </div>
 
       {/* ── Summary cards ── */}
@@ -153,27 +153,27 @@ export default async function StatsPage() {
       {/* ── Currently reading ── */}
       {readingWithDays.length > 0 && (
         <section>
-          <h2 className="font-medium mb-4">Currently Reading</h2>
+          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Currently Reading</h2>
           <div className="space-y-3">
             {readingWithDays.map((e) => (
               <Link
                 key={e.id}
                 href={`/books/${e.book.id}`}
-                className="flex gap-3 items-center bg-white border border-stone-200 rounded-lg p-3 hover:border-stone-300 transition-colors"
+                className="flex gap-3 items-center bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg p-3 hover:border-stone-300 dark:hover:border-stone-600 transition-colors"
               >
-                <div className="w-10 h-14 bg-stone-100 rounded overflow-hidden relative flex-shrink-0">
+                <div className="w-10 h-14 bg-stone-100 dark:bg-stone-800 rounded overflow-hidden relative flex-shrink-0">
                   {e.book.coverUrl && (
-                    <Image src={e.book.coverUrl} alt={e.book.title} fill className="object-cover" unoptimized />
+                    <Image src={e.book.coverUrl} alt={e.book.title} fill className="object-cover" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{e.book.title}</p>
-                  <p className="text-xs text-stone-500">
+                  <p className="font-medium text-sm truncate text-stone-900 dark:text-stone-100">{e.book.title}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
                     {(JSON.parse(e.book.authors) as string[]).join(", ")}
                   </p>
                 </div>
                 {e.daysIn !== null && (
-                  <span className="text-xs text-stone-400 flex-shrink-0">
+                  <span className="text-xs text-stone-400 dark:text-stone-500 flex-shrink-0">
                     {e.daysIn === 0 ? "Started today" : `${e.daysIn}d in`}
                   </span>
                 )}
@@ -186,18 +186,18 @@ export default async function StatsPage() {
       {/* ── Books per year ── */}
       {years.length > 0 && (
         <section>
-          <h2 className="font-medium mb-4">Books per Year</h2>
+          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Books per Year</h2>
           <div className="space-y-2">
             {years.map((year) => {
               const count = byYear[year];
               const pct = (count / maxBooksInYear) * 100;
               return (
                 <div key={year} className="flex items-center gap-3">
-                  <span className="text-sm text-stone-600 w-10">{year}</span>
-                  <div className="flex-1 bg-stone-100 rounded-full h-2">
-                    <div className="bg-stone-800 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  <span className="text-sm text-stone-600 dark:text-stone-400 w-10">{year}</span>
+                  <div className="flex-1 bg-stone-100 dark:bg-stone-800 rounded-full h-2">
+                    <div className="bg-stone-800 dark:bg-stone-300 h-2 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="text-xs text-stone-400 w-4 text-right">{count}</span>
+                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4 text-right">{count}</span>
                 </div>
               );
             })}
@@ -208,21 +208,21 @@ export default async function StatsPage() {
       {/* ── Monthly breakdown (current year) ── */}
       {hasMonthData && (
         <section>
-          <h2 className="font-medium mb-4">Monthly — {thisYear}</h2>
+          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Monthly — {thisYear}</h2>
           <div className="space-y-2">
             {byMonth.map((count, i) => {
               const pct = (count / maxMonth) * 100;
               const isPast = i <= new Date().getMonth();
               return (
                 <div key={i} className="flex items-center gap-3">
-                  <span className="text-xs text-stone-500 w-7">{MONTHS[i]}</span>
-                  <div className="flex-1 bg-stone-100 rounded-full h-2">
+                  <span className="text-xs text-stone-500 dark:text-stone-400 w-7">{MONTHS[i]}</span>
+                  <div className="flex-1 bg-stone-100 dark:bg-stone-800 rounded-full h-2">
                     <div
-                      className={`h-2 rounded-full ${isPast ? "bg-stone-700" : "bg-stone-300"}`}
+                      className={`h-2 rounded-full ${isPast ? "bg-stone-700 dark:bg-stone-300" : "bg-stone-300 dark:bg-stone-600"}`}
                       style={{ width: count > 0 ? `${pct}%` : "0%" }}
                     />
                   </div>
-                  <span className="text-xs text-stone-400 w-4 text-right">{count > 0 ? count : ""}</span>
+                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4 text-right">{count > 0 ? count : ""}</span>
                 </div>
               );
             })}
@@ -233,7 +233,7 @@ export default async function StatsPage() {
       {/* ── Rating distribution ── */}
       {ratings.length > 0 && (
         <section>
-          <h2 className="font-medium mb-4">Rating Distribution</h2>
+          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Rating Distribution</h2>
           <div className="space-y-2">
             {[5, 4, 3, 2, 1].map((star) => {
               const count = ratingDist[star];
@@ -241,13 +241,13 @@ export default async function StatsPage() {
               return (
                 <div key={star} className="flex items-center gap-3">
                   <span className="text-amber-400 w-16 text-sm">{"★".repeat(star)}</span>
-                  <div className="flex-1 bg-stone-100 rounded-full h-2">
+                  <div className="flex-1 bg-stone-100 dark:bg-stone-800 rounded-full h-2">
                     <div
                       className="bg-amber-400 h-2 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="text-xs text-stone-400 w-4 text-right">{count}</span>
+                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4 text-right">{count}</span>
                 </div>
               );
             })}
@@ -258,7 +258,7 @@ export default async function StatsPage() {
       {/* ── Fiction vs Non-Fiction ── */}
       {(fictionCount > 0 || nonFictionCount > 0) && (
         <section>
-          <h2 className="font-medium mb-4">Fiction vs Non-Fiction</h2>
+          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Fiction vs Non-Fiction</h2>
           <div className="space-y-2">
             {[
               { label: "Fiction", count: fictionCount },
@@ -268,11 +268,11 @@ export default async function StatsPage() {
               const pct = total > 0 ? (count / total) * 100 : 0;
               return (
                 <div key={label} className="flex items-center gap-3">
-                  <span className="text-sm text-stone-600 w-24">{label}</span>
-                  <div className="flex-1 bg-stone-100 rounded-full h-2">
-                    <div className="bg-stone-700 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  <span className="text-sm text-stone-600 dark:text-stone-400 w-24">{label}</span>
+                  <div className="flex-1 bg-stone-100 dark:bg-stone-800 rounded-full h-2">
+                    <div className="bg-stone-700 dark:bg-stone-300 h-2 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="text-xs text-stone-400 w-4 text-right">{count}</span>
+                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4 text-right">{count}</span>
                 </div>
               );
             })}
@@ -283,7 +283,7 @@ export default async function StatsPage() {
       {/* ── Highlights ── */}
       {(fastest || slowest || longest || shortest || oldest) && (
         <section>
-          <h2 className="font-medium mb-4">Highlights</h2>
+          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Highlights</h2>
           <div className="space-y-3">
             {fastest && (
               <Highlight
@@ -329,9 +329,9 @@ export default async function StatsPage() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white border border-stone-200 rounded-lg p-4">
-      <p className="text-2xl font-semibold">{value}</p>
-      <p className="text-xs text-stone-500 mt-0.5">{label}</p>
+    <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
+      <p className="text-2xl font-semibold text-stone-900 dark:text-stone-100">{value}</p>
+      <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{label}</p>
     </div>
   );
 }
@@ -348,21 +348,21 @@ function Highlight({
   return (
     <Link
       href={`/books/${book.id}`}
-      className="flex gap-3 items-center bg-white border border-stone-200 rounded-lg p-3 hover:border-stone-300 transition-colors"
+      className="flex gap-3 items-center bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg p-3 hover:border-stone-300 dark:hover:border-stone-600 transition-colors"
     >
-      <div className="w-8 h-12 bg-stone-100 rounded overflow-hidden relative flex-shrink-0">
+      <div className="w-8 h-12 bg-stone-100 dark:bg-stone-800 rounded overflow-hidden relative flex-shrink-0">
         {book.coverUrl && (
-          <Image src={book.coverUrl} alt={book.title} fill className="object-cover" unoptimized />
+          <Image src={book.coverUrl} alt={book.title} fill className="object-cover" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-stone-500">{label}</p>
-        <p className="font-medium text-sm truncate">{book.title}</p>
-        <p className="text-xs text-stone-400">
+        <p className="text-xs text-stone-500 dark:text-stone-400">{label}</p>
+        <p className="font-medium text-sm truncate text-stone-900 dark:text-stone-100">{book.title}</p>
+        <p className="text-xs text-stone-400 dark:text-stone-500">
           {(JSON.parse(book.authors) as string[]).join(", ")}
         </p>
       </div>
-      <span className="text-sm text-stone-500 flex-shrink-0">{sub}</span>
+      <span className="text-sm text-stone-500 dark:text-stone-400 flex-shrink-0">{sub}</span>
     </Link>
   );
 }
