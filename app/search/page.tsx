@@ -1,9 +1,23 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import type { GoogleBook, BookWithEntry, Status, AddDates } from "@/lib/types";
 import BookCard from "@/components/BookCard";
 import { useDebounce } from "@/hooks/useDebounce";
+
+function BookSkeleton() {
+  return (
+    <div className="flex gap-4 p-4 bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700 animate-pulse">
+      <div className="flex-shrink-0 w-16 h-24 bg-stone-200 dark:bg-stone-700 rounded" />
+      <div className="flex-1 space-y-2 py-1">
+        <div className="h-4 bg-stone-200 dark:bg-stone-700 rounded w-3/4" />
+        <div className="h-3 bg-stone-200 dark:bg-stone-700 rounded w-1/2" />
+        <div className="h-6 bg-stone-200 dark:bg-stone-700 rounded w-28 mt-3" />
+      </div>
+    </div>
+  );
+}
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
@@ -80,11 +94,14 @@ export default function SearchPage() {
     []
   );
 
+  const hasQuery = query.trim().length > 0;
+  const hasResults = results.length > 0;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
-        <p className="text-stone-500 text-sm mt-1">Find books to add to your library</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">Search</h1>
+        <p className="text-stone-500 dark:text-stone-400 text-sm mt-1">Find books to add to your library</p>
       </div>
 
       <input
@@ -93,12 +110,16 @@ export default function SearchPage() {
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search by title, author, or ISBN..."
         autoFocus
-        className="w-full px-4 py-2.5 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 bg-white"
+        className="w-full px-4 py-2.5 border border-stone-300 dark:border-stone-600 rounded-lg text-sm bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-stone-400"
       />
 
-      {searching && <p className="text-sm text-stone-400">Searching...</p>}
+      {searching && (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => <BookSkeleton key={i} />)}
+        </div>
+      )}
 
-      {results.length > 0 && (
+      {!searching && hasResults && (
         <div className="space-y-3">
           {results.map((book) => {
             const added = addedBooks.get(book.id);
@@ -118,8 +139,24 @@ export default function SearchPage() {
         </div>
       )}
 
-      {!searching && query && results.length === 0 && (
-        <p className="text-sm text-stone-400">No results found.</p>
+      {!searching && hasQuery && !hasResults && (
+        <div className="text-center py-12 space-y-3">
+          <p className="text-stone-500 dark:text-stone-400">No results for "{query}"</p>
+          <p className="text-sm text-stone-400 dark:text-stone-500">Try a different title, author, or ISBN</p>
+        </div>
+      )}
+
+      {!searching && !hasQuery && (
+        <div className="text-center py-12 space-y-3">
+          <p className="text-stone-400 dark:text-stone-500 text-4xl">📚</p>
+          <p className="text-stone-500 dark:text-stone-400">Search for a book to get started</p>
+          <p className="text-sm text-stone-400 dark:text-stone-500">
+            Already have books?{" "}
+            <Link href="/library" className="underline hover:text-stone-700 dark:hover:text-stone-300">
+              View your library
+            </Link>
+          </p>
+        </div>
       )}
     </div>
   );
