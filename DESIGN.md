@@ -327,3 +327,165 @@ If picking off the list one-at-a-time, this order minimizes rework:
 5. Stats redesign, mobile pass, PWA, tests — Phase 3.
 
 That gets you a noticeably better product in a month, without painting into corners that the multi-user / public-deploy phase would later have to repaint.
+
+---
+
+## 9. Mid-cycle additions
+
+Three follow-up changes scoped on top of the roadmap above. (1) and (3) are stats-page refinements; (2) is a small subtraction.
+
+### 9.1 Calendar view in stats
+
+A second visualisation alongside the existing "Books per Year" / "Monthly — {year}" sections that lays reading periods out as horizontal bars on a browsable month-by-month calendar grid.
+
+**Goals**
+
+- See *what* was being read on any given day, not just *how many* books finished in a month.
+- Make currently-reading visible on the calendar (open-ended, distinct visual treatment).
+- Browsable: ◀ / ▶ to step months, "Today" button to jump back, default month is the current one.
+- Live-updating with respect to reading-date changes — i.e. when the user adds/removes/edits dates elsewhere in the app and lands back on `/stats`, the calendar reflects the new state.
+
+**Data model — what counts as a "bar"**
+
+Given the current schema (`Entry.startedAt` / `finishedAt` only — one period per book), a bar is derived per entry as follows:
+
+| Status | `startedAt` | `finishedAt` | Bar |
+|---|---|---|---|
+| `READ` | set | set | Solid bar from `startedAt` → `finishedAt` (the canonical case) |
+| `READ` | unset | set | Single-day marker on `finishedAt` (book was logged without a start date) |
+| `READ` | set | unset | Skipped — finished but no end date is contradictory; surface as a data-quality warning rather than a bar |
+| `READING` | set | — | Open-ended bar from `startedAt` → `min(today, monthEnd)` with a "currently reading" visual: striped/dashed fill, no end-cap, optional ▶ indicator on the trailing edge |
+| `READING` | unset | — | Excluded — no anchor point to draw |
+| `WANT_TO_READ` / no dates | — | — | Excluded |
+
+The READ vs READING split is the only meaningful one: solid filled bars for finished reads, dashed/open-ended bars for in-progress. Hover/tap a bar to see the title + author + date range; click to navigate to `/books/[id]`.
+
+**Layout**
+
+- Use a CSS-grid month view: 7 columns × 5–6 rows (weeks), Mon-start (consistent with the rest of the UI — confirm no Sun-start convention is in play before locking this in).
+- Each week-row contains a stack of "lanes" for bars that overlap that week. A book that spans multiple weeks renders as one bar segment per week (the simplest correct layout — no fancy continuation lines needed for v1, but add a left/right tick on bar ends that don't actually start/end in the visible week so it's obvious the bar continues).
+- Books that span beyond the visible month clip at the month boundary with the same continuation tick.
+- Bar color: stone-700 (dark mode: stone-300) for READ; striped/dashed amber-or-stone for READING so it stands out.
+- Today-cell highlighted with a subtle ring.
+- Empty months: render the grid anyway with a one-line "Nothing read in {Month YYYY}." underneath.
+
+**Component shape**
+
+- `app/stats/page.tsx` (server component) fetches every entry that could possibly contribute to the calendar — i.e. all entries with `startedAt` or `finishedAt` set. Passes a serialised, minimal shape to a new client component:
+  ```ts
+  type CalendarEntry = {
+    entryId: string;
+    bookId: string;
+    title: string;
+    coverUrl: string | null;
+    status: "READ" | "READING";
+    startedAt: string | null;  // ISO date-only
+    finishedAt: string | null;
+  };
+  ```
+- New `components/StatsCalendar.tsx` (client) holds the visible-month state, handles ◀ / ▶ / "Today", and computes the per-week lane assignments with a small interval-graph greedy packer. Pure-client filtering — no extra API surface needed.
+- Live-update story: the calendar is a child of a server-rendered `force-dynamic` page, so a navigation back to `/stats` always re-runs the query and re-passes fresh props. For changes made *while* the user is on `/stats` (in another tab, or after we wire up `router.refresh()` in `BookDetail` mutations — which we should do anyway), the same flow applies. **No polling, no websockets** — that's overkill for a single-user local app.
+
+**Edge cases & gotchas**
+
+- **Date timezone**: `startedAt` / `finishedAt` are `DateTime` columns but represent date-only intent. The existing latent `toISOString()` bug noted in §1 means a date entered as `2026-04-30` may serialise as `2026-04-29T23:00:00Z` for some locales. Fix `lib/dates.ts` (already on the list at §5) *before* shipping the calendar, otherwise bars will land on the wrong day for ~50% of users at month boundaries.
+- **Re-reads (Phase 2 §7)**: when `ReadingSession` lands, the calendar source becomes "all sessions with at least one date" rather than "all entries with at least one date". The component contract above (`CalendarEntry`) cleanly extends to one entry per session; nothing client-side needs to change beyond the server-side query. Worth keeping the type name generic (`CalendarBar` rather than `CalendarEntry`) to avoid renaming later.
+- **Data-quality bars**: entries with `finishedAt < startedAt` or status mismatches are skipped silently in the v1 — log a `console.warn` so they're noticeable in dev.
+- **Performance**: at any plausible library size (low thousands of entries) the per-month filtering is trivial; no virtualisation needed.
+
+**Where it lives on the page**
+
+Insert as a new section between "Monthly — {year}" and "Rating Distribution". Heading: **"Reading calendar"** with the month label and ◀ / ▶ controls in the header row.
+
+---
+
+### 9.2 Remove the Fiction vs Non-Fiction split (for now)
+
+The current implementation in `app/stats/page.tsx:67-74` infers fiction by checking whether any genre string contains `"fiction"`, and treats the absence of that substring as non-fiction. This is wrong in both directions:
+
+- Books with no `genres` data are skipped entirely — Google Books returns empty categories more often than not, so the sample is silently small and biased.
+- Books whose genres include "Literary Fiction" or "Science Fiction" hit the filter, but anything tagged only as "Mystery", "Romance", "Thriller", etc. is misclassified as non-fiction.
+- Conversely, "Non-fiction" → contains "fiction" → counted as fiction.
+
+**Plan**
+
+1. **Drop the section.** Remove the `fictionCount` / `nonFictionCount` block in `app/stats/page.tsx` and the corresponding `<section>`. Also remove `genreCount` from `app/api/stats/route.ts` if it's similarly unused (or just delete that whole route per §3 item 16).
+2. **Document the gap.** Add a one-line note in this design doc (below) so it doesn't quietly disappear and resurface as a "missing feature" later.
+3. **Future re-implementation, when the data exists.** Options, ranked by feasibility:
+   - **Manual override on the book record** — add an optional `Book.kind: "FICTION" | "NONFICTION" | null` column, edited inline on `/books/[id]` (slots into the Phase 2 §12 manual-edit feature). User-curated, slow to populate but always correct.
+   - **Open Library subjects API** — richer subject taxonomy than Google Books, but still ambiguous and would need its own mapping layer. Worth a spike before committing.
+   - **Hardcover.app** — has explicit fiction/non-fiction flags but requires a different metadata pipeline; not justified for one stat alone.
+
+The recommended path is the manual override (option 1) bundled with §12, not a separate effort. Until then: no fiction/non-fiction stat appears on the page.
+
+---
+
+### 9.3 Standardise the "at a glance" summary cards
+
+Today the summary grid (`app/stats/page.tsx:130-151`) mixes three formats:
+
+| Card | Value rendered | Where the unit lives |
+|---|---|---|
+| Books Read | `17` | (none — implicit) |
+| Pages Read | `4,523` | (none — implicit) |
+| Avg Rating | `4.2 / 5` | **in the value** |
+| Avg Days / Book | `4` | in the label |
+| Read in {year} | `3` | in the label |
+| Want to Read | `8` | in the label |
+| Avg Length | `287 pp` | **in the value** |
+| Most Read · {Author} | `4 books` | **in the value** |
+| 1-Day Reads | `2` | in the label |
+| Rated | `12 / 17` | **in the value (as a ratio)** |
+
+**Rule**
+
+> The `value` slot is a number (or `—`). Anything qualifying that number — units, scale, comparator, denominator — lives in the `label`.
+
+**Standardised mapping**
+
+| Card | New value | New label |
+|---|---|---|
+| Books Read | `17` | `Books read` |
+| Pages Read | `4,523` | `Pages read` |
+| Avg Rating | `4.2` | `Avg rating (out of 5)` |
+| Avg Days / Book | `4` | `Avg days per book` |
+| Read in {year} | `3` | `Read in {year}` |
+| Want to Read | `8` | `On the want-to-read shelf` |
+| Avg Length | `287` | `Avg pages per book` |
+| Most Read · {Author} | `4` | `Books by {Author} (most read)` |
+| 1-Day Reads | `2` | `Books read in a single day` |
+| Rated | `12` | `Books rated (of {read.length})` |
+
+Notes on the trickier ones:
+
+- **Avg Rating "out of 5"**: belongs in the label, not the value. The value `4.2` is a number; the `/ 5` was acting as both a unit and a scale-anchor and reads as if it's a fraction.
+- **Rated `12 / 17`**: the cleanest fix is "Rated 12, of 17 read" → value `12`, label `Books rated (of 17)`. Alternative: drop the card entirely and surface ratings coverage in the Rating Distribution section instead. **Lean toward keeping it** — it's the only place coverage is visible at a glance.
+- **Most Read · {Author}**: the author belongs in the label so it can wrap onto two lines if needed; the value is the count of books by that author. Keeps card height consistent.
+- **Numeric values get `toLocaleString()`** uniformly so `4523` always renders as `4,523`.
+
+**Component change**
+
+The `Stat` helper at `app/stats/page.tsx:330-337` already renders value + label in that order. The change is data-only — update the call sites and pass numbers (not pre-formatted strings) where possible. Optionally tighten the prop type to `value: number | "—"` to enforce the rule at the type level; pre-format with `toLocaleString()` inside `Stat` so the rule can't drift.
+
+```tsx
+function Stat({ label, value }: { label: string; value: number | "—" }) {
+  return (
+    <div className="...">
+      <p className="text-2xl font-semibold ...">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
+      <p className="text-xs ... mt-0.5">{label}</p>
+    </div>
+  );
+}
+```
+
+**Out of scope here**: redesigning what cards appear or in what order — that's the §3 Phase 3 item 13 stats redesign. This pass is purely a presentation-consistency cleanup.
+
+---
+
+### Sequencing within this batch
+
+1. **9.2 Remove fiction/non-fiction** — five-minute deletion, do first so neither of the next two has to reason about the section.
+2. **9.3 Standardise summary cards** — small, mechanical, no schema or data fetching changes.
+3. **9.1 Calendar view** — the only one that's a real implementation task. Do *after* fixing the date-input timezone helper (§5), otherwise bars will land on the wrong day at month boundaries.
