@@ -1,11 +1,15 @@
 import Link from "next/link";
 import prisma from "@/lib/prisma";
-import StarRating from "@/components/StarRating";
 import Image from "next/image";
+import StatsCalendar, { type CalendarBar } from "@/components/StatsCalendar";
 
 export const dynamic = "force-dynamic";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function fmtLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export default async function StatsPage() {
   const entries = await prisma.entry.findMany({ include: { book: true } });
@@ -63,16 +67,6 @@ export default async function StatsPage() {
   const maxMonth = Math.max(...byMonth, 1);
   const hasMonthData = byMonth.some((n) => n > 0);
 
-  // ── Fiction vs Non-Fiction ────────────────────────────────────────────────
-  let fictionCount = 0;
-  let nonFictionCount = 0;
-  for (const e of read) {
-    const genres = JSON.parse(e.book.genres) as string[];
-    if (genres.length === 0) continue;
-    if (genres.some((g) => g.toLowerCase().includes("fiction"))) fictionCount++;
-    else nonFictionCount++;
-  }
-
   // ── Rating distribution ───────────────────────────────────────────────────
   const ratingDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   for (const r of ratings) ratingDist[r]++;
@@ -119,6 +113,23 @@ export default async function StatsPage() {
       : null,
   }));
 
+  // ── Calendar bars ─────────────────────────────────────────────────────────
+  const calendarBars: CalendarBar[] = entries
+    .filter((e) => {
+      if (e.status === "READ") return !!e.finishedAt;
+      if (e.status === "READING") return !!e.startedAt;
+      return false;
+    })
+    .map((e) => ({
+      entryId: e.id,
+      bookId: e.book.id,
+      title: e.book.title,
+      coverUrl: e.book.coverUrl,
+      status: e.status as "READ" | "READING",
+      startedAt: e.startedAt ? fmtLocalDate(e.startedAt) : null,
+      finishedAt: e.finishedAt ? fmtLocalDate(e.finishedAt) : null,
+    }));
+
   return (
     <div className="space-y-12">
       <div>
@@ -128,25 +139,25 @@ export default async function StatsPage() {
 
       {/* ── Summary cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Stat label="Books Read" value={read.length} />
-        <Stat label="Pages Read" value={totalPages.toLocaleString()} />
-        <Stat label="Avg Rating" value={avgRating ? `${avgRating.toFixed(1)} / 5` : "—"} />
-        <Stat label="Avg Days / Book" value={avgDays ?? "—"} />
+        <Stat label="Books read" value={read.length} />
+        <Stat label="Pages read" value={totalPages} />
+        <Stat label="Avg rating (out of 5)" value={avgRating ? avgRating.toFixed(1) : "—"} />
+        <Stat label="Avg days per book" value={avgDays ?? "—"} />
         {byYear[thisYear] !== undefined && (
           <Stat label={`Read in ${thisYear}`} value={byYear[thisYear]} />
         )}
-        <Stat label="Want to Read" value={entries.filter((e) => e.status === "WANT_TO_READ").length} />
+        <Stat label="On the want-to-read shelf" value={entries.filter((e) => e.status === "WANT_TO_READ").length} />
         {avgPages !== null && (
-          <Stat label="Avg Length" value={`${avgPages.toLocaleString()} pp`} />
+          <Stat label="Avg pages per book" value={avgPages} />
         )}
         {topAuthor && topAuthor[1] > 1 && (
-          <Stat label={`Most Read · ${topAuthor[0]}`} value={`${topAuthor[1]} books`} />
+          <Stat label={`Most read — ${topAuthor[0]}`} value={topAuthor[1]} />
         )}
         {singleDayReads > 0 && (
-          <Stat label="1-Day Reads" value={singleDayReads} />
+          <Stat label="Books read in a single day" value={singleDayReads} />
         )}
         {ratings.length > 0 && (
-          <Stat label="Rated" value={`${ratings.length} / ${read.length}`} />
+          <Stat label={`Books rated (of ${read.length})`} value={ratings.length} />
         )}
       </div>
 
@@ -230,6 +241,9 @@ export default async function StatsPage() {
         </section>
       )}
 
+      {/* ── Reading calendar ── */}
+      {calendarBars.length > 0 && <StatsCalendar bars={calendarBars} />}
+
       {/* ── Rating distribution ── */}
       {ratings.length > 0 && (
         <section>
@@ -246,31 +260,6 @@ export default async function StatsPage() {
                       className="bg-amber-400 h-2 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
-                  </div>
-                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4 text-right">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ── Fiction vs Non-Fiction ── */}
-      {(fictionCount > 0 || nonFictionCount > 0) && (
-        <section>
-          <h2 className="font-medium mb-4 text-stone-900 dark:text-stone-100">Fiction vs Non-Fiction</h2>
-          <div className="space-y-2">
-            {[
-              { label: "Fiction", count: fictionCount },
-              { label: "Non-Fiction", count: nonFictionCount },
-            ].map(({ label, count }) => {
-              const total = fictionCount + nonFictionCount;
-              const pct = total > 0 ? (count / total) * 100 : 0;
-              return (
-                <div key={label} className="flex items-center gap-3">
-                  <span className="text-sm text-stone-600 dark:text-stone-400 w-24">{label}</span>
-                  <div className="flex-1 bg-stone-100 dark:bg-stone-800 rounded-full h-2">
-                    <div className="bg-stone-700 dark:bg-stone-300 h-2 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   <span className="text-xs text-stone-400 dark:text-stone-500 w-4 text-right">{count}</span>
                 </div>
@@ -327,10 +316,12 @@ export default async function StatsPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-lg p-4">
-      <p className="text-2xl font-semibold text-stone-900 dark:text-stone-100">{value}</p>
+      <p className="text-2xl font-semibold text-stone-900 dark:text-stone-100">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </p>
       <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{label}</p>
     </div>
   );
