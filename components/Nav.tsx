@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 
 type Theme = "light" | "dark" | "system";
@@ -24,15 +24,7 @@ const links = [
 
 export default function Nav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, setTheme } = useTheme();
-
-  if (pathname === "/login") return null;
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-  }
 
   function cycleTheme() {
     const idx = THEME_CYCLE.indexOf(theme);
@@ -66,12 +58,6 @@ export default function Nav() {
             aria-label={`Current theme: ${theme}. Click to cycle.`}
           >
             {THEME_ICONS[theme]}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300 transition-colors"
-          >
-            Sign out
           </button>
         </div>
       </div>
