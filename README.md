@@ -1,6 +1,6 @@
 # Bamboo
 
-A personal book tracking app. Search for books via Google Books, manage reading shelves, track dates and ratings, and view reading stats. Single-user, password-protected.
+A personal book tracking app. Search for books via Google Books, manage reading shelves, track dates and ratings, and view reading stats. Single-user, no auth.
 
 ## Features
 
@@ -9,12 +9,11 @@ A personal book tracking app. Search for books via Google Books, manage reading 
 - **Dates & ratings** — track start/finish dates and 1–5 star ratings per book
 - **Stats** — books per year, monthly breakdown, rating distribution, genres, pace highlights
 - **Import** — bulk import from a StoryGraph CSV export
-- **Auth** — simple password gate, no accounts
 
 ## Stack
 
 - Next.js 16 (App Router)
-- Prisma v7 + SQLite (local) / Postgres (production)
+- Prisma v7 + SQLite
 - Tailwind CSS
 - Google Books API
 
@@ -30,8 +29,6 @@ A personal book tracking app. Search for books via Google Books, manage reading 
 2. **Environment variables** — create `.env.local`:
    ```
    GOOGLE_BOOKS_API_KEY=your_key
-   APP_PASSWORD=your_password
-   SESSION_SECRET=your_random_secret   # openssl rand -base64 32
    DATABASE_URL=file:./prisma/dev.db
    ```
 
@@ -45,17 +42,13 @@ A personal book tracking app. Search for books via Google Books, manage reading 
    npm run dev
    ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in with your password.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Deploying to Vercel
-
-1. Push to GitHub and import the repo in Vercel.
-2. Add environment variables in **Settings → Environment Variables**:
-   - `GOOGLE_BOOKS_API_KEY`
-   - `APP_PASSWORD`
-   - `SESSION_SECRET`
-   - `DATABASE_URL` (point to a hosted Postgres instance, e.g. Vercel Postgres or Neon)
-3. Deploy.
+If port 3000 is taken, pass a different one with `-p`:
+```bash
+npm run dev -- -p 3001
+npm start -- -p 3001
+```
 
 ## Importing from StoryGraph
 

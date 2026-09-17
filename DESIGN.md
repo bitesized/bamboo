@@ -6,7 +6,7 @@
 
 ## 1. Where Bamboo is today
 
-Bamboo is a single-user Next.js 16 (App Router) book tracker backed by Prisma 7 + SQLite, gated by a single-password proxy. Google Books is the canonical metadata source; books are cached in the local DB on first add.
+Bamboo is a single-user Next.js 16 (App Router) book tracker backed by Prisma 7 + SQLite, running locally with no auth. Google Books is the canonical metadata source; books are cached in the local DB on first add.
 
 ### What's working well
 
@@ -21,11 +21,10 @@ Bamboo is a single-user Next.js 16 (App Router) book tracker backed by Prisma 7 
 
 | Area | Issue |
 |---|---|
-| Data model | `authors` and `genres` are JSON-encoded strings; every read site does `JSON.parse(...)`. Fine for SQLite, will become real-column work on Postgres. |
+| Data model | `authors` and `genres` are JSON-encoded strings; every read site does `JSON.parse(...)`. Works, but every consumer has to remember to parse. |
 | Data model | One `Entry` per book — re-reads, DNFs, and per-session reading logs aren't representable. |
 | Data model | Deleting an entry also deletes the cached `Book` (`/api/entries/[id]/route.ts:41`). This silently re-fetches from Google on next add, and an existing `.catch(() => {})` hides any failure. |
 | API / validation | API routes accept whatever JSON arrives — no zod/valibot guard, no error responses for bad input. Easy to wedge into invalid state from a stale tab. |
-| Auth | The HMAC cookie is a constant for the lifetime of `SESSION_SECRET`: no expiry baked in, no rotation, no per-session nonce. Logging out only clears your cookie, not anyone else's. Good enough for one user, not for multi-user. |
 | Stats | `app/api/stats/route.ts` exists but nothing calls it. Either wire it up or delete it. |
 | Dates | `new Date("YYYY-MM-DD").toISOString()` shifts to UTC and can read back as the previous day depending on locale — already a latent bug in `BookDetail.tsx`. |
 | Images | `<Image unoptimized />` everywhere bypasses Next's image pipeline. Configure `remotePatterns` for `books.google.com` and drop the flag. |
@@ -43,8 +42,7 @@ Bamboo is a single-user Next.js 16 (App Router) book tracker backed by Prisma 7 
 - Pay down the highest-leverage tech debt that blocks the above (data model for re-reads, input validation, image pipeline).
 
 ### Non-goals (this cycle)
-- Vercel / Postgres migration (acknowledged: not a priority right now).
-- Multi-user accounts, social features, or a public deploy. Sketched in §6 only.
+- Multi-user accounts or social features. Sketched in §6 only.
 - Mobile app or native wrappers.
 - Recommendation engine / ML.
 
@@ -274,7 +272,6 @@ These don't deserve their own phase but should be done opportunistically as feat
   images: { remotePatterns: [{ protocol: "https", hostname: "books.google.com" }, { protocol: "https", hostname: "books.googleusercontent.com" }] }
   ```
   Then drop every `unoptimized` prop.
-- **Error monitoring.** When you do eventually deploy, drop in Sentry or Axiom — but not yet.
 
 ---
 
@@ -286,15 +283,8 @@ These are deliberately rough — flagged so the data-model decisions made above 
 
 - Add `User { id, email, name?, passwordHash, createdAt }`.
 - Every `Entry`, `ReadingSession`, `Goal`, `Tag` gets `userId` (nullable during migration, then NOT NULL).
-- Replace the password proxy with a real auth library — likely [`better-auth`](https://www.better-auth.com/) or NextAuth. Email + password, magic link optional. Sessions in DB, not just signed cookies.
-- Rate-limit `/api/auth/login`.
-- The proxy stays; it just checks for a real session instead of a single HMAC token.
-
-### Public deploy
-
-- Postgres migration: drop SQLite, switch the Prisma datasource, change `authors`/`genres` to real `String[]` columns (Postgres supports arrays natively — no more JSON parsing).
-- Environment-driven config: separate `dev` / `prod` databases, prod runs on Vercel + Neon (or Supabase).
-- Add `robots.txt` + meta tags. Decide whether profiles are public-by-default or private.
+- Add a real auth library — likely [`better-auth`](https://www.better-auth.com/) or NextAuth. Email + password, magic link optional. Sessions in DB, not just signed cookies.
+- Rate-limit the login endpoint.
 
 ### Social / discovery (only if there's appetite)
 
@@ -326,7 +316,7 @@ If picking off the list one-at-a-time, this order minimizes rework:
 4. DNF, tags, goals, CSV export, manual book editing — Phase 2.
 5. Stats redesign, mobile pass, PWA, tests — Phase 3.
 
-That gets you a noticeably better product in a month, without painting into corners that the multi-user / public-deploy phase would later have to repaint.
+That gets you a noticeably better product in a month, without painting into corners that a multi-user phase would later have to repaint.
 
 ---
 
